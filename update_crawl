@@ -1,0 +1,82 @@
+#!/bin/bash
+
+#get and compile latest version of DCSS for OSX
+
+#YOU NEED TO HAVE XCODE AND COMMAND LINE TOOLS INSTALLED!
+
+#You may need to add "tile_full_screen = false" to crawls init.txt
+
+#crawl source directory.  this is where the files are downloaded to
+#change this to whatever you want
+dldir="$HOME/code/downloads/crawl"
+
+disable_wizard_mode="y"
+build_tiles="y"
+build_console="y"
+
+#mastersource="git://gitorious.org/crawl/crawl.git"
+mastersource="https://github.com/crawl/crawl.git"
+
+#check dependancies
+type -t git 2>&1 >/dev/null
+GIT_IS_NOT_SETUP=$?
+if [ $GIT_IS_NOT_SETUP != 0 ]; then
+  echo "ERROR:  git not installed"
+  echo "Go to https://help.github.com/articles/set-up-git for directions to install Git"
+  exit 1
+fi
+
+type -t xcode-select 2>&1 >/dev/null
+XCODE_IS_NOT_INSTALLED=$?
+if [ $XCODE_IS_NOT_INSTALLED != 0 ]; then
+  echo "ERROR:  xcode not installed"
+  echo "Please install XCODE from the app store"
+  exit 1
+fi
+
+# double check xcode
+type -t gcc 2>&1 >/dev/null
+XCODE_IS_NOT_INSTALLED=$?
+if [ $XCODE_IS_NOT_INSTALLED != 0 ]; then
+  echo "ERROR:  xcode not installed (gcc not found)"
+  echo "Please install XCODE from the app store"
+  exit 1
+fi
+
+
+echo "\nSource will downloaded to $dldir\n"
+
+#if source directory doesn't exist, create it and do initial git pull
+if [ ! -d "$dldir" ]; then
+  echo "\nThis is the first time the script is run.  Creating directory $dldir"
+  mkdir -p -v $dldir
+  cd $dldir
+  git clone "$mastersource"
+fi
+
+
+echo "\nDownloading crawl updates\n"
+cd $dldir
+git pull
+git submodule update --init
+cd crawl-ref/source
+
+if [ $build_tiles == "y" ]; then
+  echo "Compiling Crawl tiles version\n"
+  make clean
+  #make APPLE_GCC=y NO_PKGCONFIG=y CONTRIB_SDL=y TILES=y NOWIZARD=$disable_wizard_mode mac-app-tiles
+  make APPLE_GCC=y NO_PKGCONFIG=y CONTRIB_SDL=y TILES=y mac-app-tiles
+  # sometimes the above doesn't work, and you need this one instead
+  #make BUILD_ALL=y APPLE_GCC=y NO_PKGCONFIG=y CONTRIB_SDL=y TILES=y NOWIZARD=$disable_wizard_mode mac-app-tiles
+  rm -rf ~/Applications/Crawl.app
+  mv -f $dldir/crawl-ref/source/build/app-bundle-stage/Dungeon\ Crawl\ Stone\ Soup\ -\ Tiles.app ~/Applications/Crawl.app
+fi
+
+if [ $build_console == "y" ]; then
+  echo "Compiling Crawl console version\n"
+  make clean
+  make
+  #make NOWIZARD=$disable_wizard_mode
+  # sometimes the above doesn't work, and you need this one instead
+  #make BUILD_ALL=y NOWIZARD=$disable_wizard_mode
+fi
